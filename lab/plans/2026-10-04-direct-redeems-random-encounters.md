@@ -14,7 +14,7 @@
 | 2026-10-04 | Chriz's stream doesn't need the extension panel. Yuna's extension/token path stays available; a **local mode switch** picks direct redeems or the extension path - simple config on the streamer's PC that nothing from outside can flip. |
 | 2026-10-04 | Phase 1 triggers: **native Channel Points redeems + Bits** (custom Power-ups / cheers). Donations (StreamElements tips, Streamer.bot) later. |
 | 2026-10-04 | A **hold/stop control** for redeems is required. Redemptions arriving while offline: hold or refund - decided during design. |
-| 2026-10-04 | **No spawns in cities** and in areas Chriz blocks. |
+| 2026-10-04 | ~~**No spawns in cities**~~ - replaced the same day by the city switch below. No spawns in areas Chriz blocks. |
 | 2026-10-04 | `lab` branch may be committed and pushed to the fork. No issue to Yuna until the wording is agreed. |
 | 2026-10-04 | **Work with Yuna, not past her:** approach her openly, keep her overlay compatible and central, contribute in small steps she can review and take over; maybe help her towards Rust over time. Quality bar: whatever touches viewers' points or Bits must be solid, the rest can stay pragmatic. |
 | 2026-10-04 | **Cities: a switch** (allow / block) plus Chriz's own block and allow lists - neither "always chaos" (August) nor "never in cities" is hard-coded. |
@@ -172,6 +172,14 @@ that speaks a protocol it already understands. "Mischform" from earlier meant ex
 
 What would make A better: Yuna wants the feature to *be* part of her overlay and is happy to
 maintain it there - then the core logic could still be shared, just embedded.
+
+Long term: the overlay is the natural *display* for the feature (it already sits on top of the
+game) and can become a verified spawn path once it reports results. The decision logic stays
+outside so other games can use it.
+
+Risk of P: a second Twitch integration for BG could read as competition to her extension. Hence:
+talk first, present ours as Chriz's stream setup and lab, and send everything generally useful
+(fixes, creature search, JSON sets, result reporting) to her repo.
 
 Collaboration order:
 
