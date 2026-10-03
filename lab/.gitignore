@@ -1,0 +1,5 @@
+# Generated from a local game install - regenerate with tools/cre_catalog.py
+out/
+
+# Drafts addressed to Yuna stay local until Chriz and Claude agree on the wording.
+issues/
