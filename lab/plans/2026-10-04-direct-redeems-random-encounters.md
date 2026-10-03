@@ -439,6 +439,8 @@ Facts checked against the official docs on 2026-10-04 (sources in section 12).
 ## 11. Upstream collaboration (Yuna agreed to issues + fork PRs)
 
 Nothing is posted to Yuna until Chriz and Claude have agreed on the wording (decision 2026-10-04).
+Approach (Chriz, 2026-10-04): open and low-pressure. We build in parallel; anything she'd like
+inside the overlay we build with her there; modernizing her build is an offer she can decline.
 Drafts stay local in `lab/issues/` and are not pushed. Candidate issues for `tapahob/BG2RadarOverlay`:
 
 1. Direct redeems + random encounter tiers - the umbrella proposal; content depends on decision 0.
@@ -449,6 +451,17 @@ Drafts stay local in `lab/issues/` and are not pushed. Candidate issues for `tap
 5. Spawn bridge v5 (only for option A): request ids, results, game context, placement modes.
 6. Creature search in the pack editor (KEY + override index).
 7. Docs: `CLAUDE.md` refund paragraph is stale.
+8. Build: core library as an SDK-style .NET 8 project. Spike done 2026-10-04 on the local,
+   unpushed branch `feat/sdk-style-core`. The app has run on modern .NET since 2021 (WPF frontend:
+   net5 -> netcoreapp3.1 -> 6 -> 7 -> 8); only the core's project file is still .NET Framework
+   (4.8 since 2022). Change: SDK-style `BGOverlay.csproj` (explicit file list - it sits at the
+   repo root), `UseWindowsForms` instead of a hint path into the 4.8 reference assemblies,
+   `build.bat` publishes the WPF project instead of the solution (else NETSDK1099),
+   `packages.config` and `App.config` removed. Result: `dotnet build` and `build.bat` work without
+   Visual Studio, Developer Pack or nuget.exe; 0 errors; same embedded resources and DLL set;
+   NLog/SharpZipLib ship their .NET Standard builds instead of the .NET Framework ones. New:
+   2x CS0618 (`UnmanagedType.AsAny` in `WinAPIBindings.cs` - already what runs today). Still to
+   do: start the overlay against a running game.
 
 ## 12. Twitch platform facts (sources)
 
