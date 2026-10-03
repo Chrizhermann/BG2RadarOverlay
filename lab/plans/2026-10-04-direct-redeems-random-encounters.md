@@ -18,6 +18,33 @@
 | 2026-10-04 | `lab` branch may be committed and pushed to the fork. No issue to Yuna until the wording is agreed. |
 | 2026-10-04 | **Work with Yuna, not past her:** approach her openly, keep her overlay compatible and central, contribute in small steps she can review and take over; maybe help her towards Rust over time. Quality bar: whatever touches viewers' points or Bits must be solid, the rest can stay pragmatic. |
 
+### 0.1 Earlier design (August) - recovered
+
+Codex thread "Design Twitch enemy spawns", 2026-08-28/29, run in `eeex-remote-console`
+(`~/.codex/sessions/2026/08/28/rollout-2026-08-28T19-10-37-01a047d9-...jsonl`, decisions around
+lines 403-854; research threads from the same days next to it). Seed: a Claude prompt from
+2026-07-11 ("we would need a queue and a definitive test, if the result of the redeem actually
+happened"). The thread ends with an unanswered architecture question - nothing was built.
+
+| August decision (Chriz) | Status now |
+|---|---|
+| "Donations/bits/channel points should never get lost." | **carried over** - drives the reliability question in 3.2 |
+| Atmospheric encounters: enemies with working AI, drama and some chaos, not constant harassment | carried over |
+| MVP: Channel Points first, one standard random reward, ~10 encounters for BG1 levels, EET first | carried over (Bits join phase 1 per section 0) |
+| Audience creatures give **zero XP and no loot** in the MVP ("Locked in") | **carried over** - closes open decision 5 |
+| Durable FIFO queue; cooldown of at least 5 min; **two clocks** (real time + eligible gameplay time), both must run out; Hold freezes both and keeps the queue | carried over |
+| Living audience enemies don't block the next encounter; emergency cap on spawned creatures | carried over |
+| Invalid states: dialogue, loading, cutscenes, area transitions; normal combat does not block | carried over |
+| Difficulty = threat budget from average party XP x campaign factor x reward tier x **visible d20 fate roll** ("d20 is more fun"); natural 20 = capped critical (worst *eligible* encounter), natural 1 still spawns; roll at dispatch, persisted, never rerolled on retry | **to merge** with the tier model in section 4 |
+| Presentation: viewer name -> d20 -> short omen/title ("a sneak peek and not the full explanation") -> arrival countdown; composition stays hidden; enemies arrive off-screen and walk in under AI | carried over |
+| Viewer names sanitized; profanity fine; seriously bad names become "A mysterious patron" | carried over |
+| Delivery must be verified in game (creatures exist, AI ticked) - a Remote Console `ok` is not proof; ledger: verified / refunded / manual; uncertain outcomes quarantined, never blindly retried | carried over |
+| End of stream: pending Channel Points go to a review list (carry over or refund) | carried over - partly closes open decision 8 |
+| Emergency **Banish** (confirmation-protected, only audience-spawned creatures); completed encounters never replay after loading an older save | carried over |
+| Creature safety: audience **variants** cloned from the effective (post-SCS) creatures, AI kept, dialogue / death variables / unique loot / XP stripped; catalog entries carry campaign, threat, placement, audit status; revalidate after mod changes | carried over - replaces "spawn the original CRE" |
+| Cities: "I think for now we accept the chaos" - no city exception | **superseded** 2026-10-04: no spawns in cities and blocked areas (section 4) |
+| Architecture "Approach 3": Twitch webhooks -> always-on hosted inbox + durable ledger -> local Windows agent -> EEex Remote Console -> typed in-game spawn controller -> verified receipt -> fulfil | never answered; see 3.2 |
+
 ## 1. Goal
 
 1. A viewer spawns an encounter in the streamer's game with **one native Twitch action** - a
@@ -148,6 +175,24 @@ Collaboration order:
    feels about a Rust core and about spawn results in the overlay.
 3. Spawn result reporting (mailbox + WebSocket) - as our PR or by her, whatever she prefers.
 4. The Rust core, working against her unchanged overlay from day one.
+
+### 3.2 "Never lost" vs. a local WebSocket (open)
+
+- Native EventSub over WebSocket only delivers while the app is connected; after a real disconnect
+  nothing is replayed. Channel Points can be recovered afterwards (`UNFULFILLED` query) -
+  **Bits / Power-ups cannot**, and they can't be refunded either.
+- The August design answered this with an always-on hosted inbox: Twitch delivers to a webhook on
+  a server that is always up, the inbox stores events durably, the local agent pulls them.
+- Options:
+  1. Local WebSocket only: accept the Bits gap (app crash or disconnect mid-stream), show the
+     connection state prominently.
+  2. Small inbox on Chriz's own server (Hetzner, Docker + Traefik already host the now-playing
+     service).
+  3. **Yuna's relay as the inbox:** it already receives EventSub webhooks with signature checks,
+     replay protection and file persistence, and she made it self-hostable with Docker. Teaching it
+     to queue direct redemptions durably for the local core would be natural joint work - fits
+     option C.
+- Leaning: 3 if Yuna likes it (most collaborative), 2 otherwise (most independent).
 
 ## 4. Random encounter model
 
@@ -356,18 +401,24 @@ Facts checked against the official docs on 2026-10-04 (sources in section 12).
 
 0. **Host:** A, B or C (Rust core + Yuna's overlay as spawner, recommended)? See 3.1.
 1. **Board:** where should it live (GitHub Project, a markdown board in `lab/`, ...)?
-2. **Tier model:** absolute tiers + level caps now, campaign bands later (recommended) - or bands
-   from the start?
+2. **Randomness:** merge the August d20 fate roll with the October tiers - proposal: the reward
+   sets the tier band, the visible d20 picks inside it (20 = capped critical = highest *eligible*
+   tier), party XP + campaign decide what is eligible.
 3. **Over the cap:** downgrade to the highest allowed tier, or refund?
 4. **Run-enders:** allow tier 10 at all in a no-reload run, and from which party level?
-5. **XP from spawns:** keep / scale down / none?
+5. ~~XP from spawns~~ - decided in August: zero XP, no loot (MVP).
 6. **Bits:** custom Power-ups with a fixed, announced encounter each (recommended, policy-safe),
    cheers by amount, or both? And may Bits pick a random encounter within a band - most likely
    allowed (no prize for the viewer), but not explicitly covered by Twitch's wording.
 7. **Where shared sets live:** folder in the fork, or a separate repo?
-8. **Offline redemptions:** hold until the next stream, or refund automatically?
-9. **Stop with Bits in the queue:** keep them for the next safe moment, or announce and drop?
-10. **No-spawn defaults:** City areas and interiors blocked by default - OK?
+8. **Offline redemptions:** August says pending Channel Points go to an end-of-stream review list
+   (carry over or refund). Same for points redeemed while offline?
+9. **Controls:** August's Hold (freeze both cooldown clocks, keep the queue, pause the reward) +
+   Banish, or October's split into Hold / Pause / Stop? And Bits in the queue on Stop: keep or
+   announce and drop?
+10. **Cities:** August "accept the chaos", October "no spawns in cities" - October wins, confirm.
+    City areas and interiors blocked by default - OK?
+11. **Inbox / reliability:** local WebSocket only, own server, or Yuna's relay (3.2)?
 
 ## 11. Upstream collaboration (Yuna agreed to issues + fork PRs)
 
