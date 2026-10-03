@@ -17,6 +17,11 @@
 | 2026-10-04 | **No spawns in cities** and in areas Chriz blocks. |
 | 2026-10-04 | `lab` branch may be committed and pushed to the fork. No issue to Yuna until the wording is agreed. |
 | 2026-10-04 | **Work with Yuna, not past her:** approach her openly, keep her overlay compatible and central, contribute in small steps she can review and take over; maybe help her towards Rust over time. Quality bar: whatever touches viewers' points or Bits must be solid, the rest can stay pragmatic. |
+| 2026-10-04 | **Cities: a switch** (allow / block) plus Chriz's own block and allow lists - neither "always chaos" (August) nor "never in cities" is hard-coded. |
+| 2026-10-04 | **Event inbox: a small always-on Docker container on a small private VM** (provider open: Hetzner, Google Cloud or similar). The same VM can later take the Discord bot and the now-playing service (today on the Hermann Consult server) - that move is `twitch-setup-chriz` work, coordinated with its agents. |
+| 2026-10-04 | **Security bar:** a fun project for a 30-year-old game - no fortress. The one hard rule stays: viewers' points and Bits must not get lost. |
+| 2026-10-04 | **Reuse:** the mechanics (redeems, randomness, queue, cooldowns, controls) should carry over to other games Chriz streams -> game-agnostic core, game-specific adapters. |
+| 2026-10-04 | Still open (Chriz + Claude, then Yuna): our own core with overlay support in parallel, or everything inside the overlay repo. Talk to Yuna before building. |
 
 ### 0.1 Earlier design (August) - recovered
 
@@ -142,41 +147,42 @@ The Twitch route is decided (section 0): native redeems first. Via Yuna's relay 
 public relay, broadcaster -> overlay routing (missing today), the manage scope, rewards created by
 the relay's client id and an ack path - not worth it for direct redeems.
 
-### 3.1 Where the encounter logic runs (open - decision 0)
+### 3.1 Where the encounter logic runs (open - talk to Yuna first)
 
-Guiding principle (Chriz, 2026-10-04): build *with* Yuna, not past her. Her overlay stays the face
-of the project and keeps working as it does today; we contribute in steps she can review and take
-over.
+Guiding principle (Chriz, 2026-10-04): build *with* Yuna, not past her. Her overlay's job is the
+radar - live stats for everything in range, used by many players - and that stays hers and
+untouched. The audience-encounter feature is a different product and doesn't have to live inside it.
 
 For spawning, the overlay does three things today: write into the game (mailbox), edit packs (WPF
-tab), and talk to a relay over WebSocket. The last one is the hook: the overlay already spawns
-whatever a `summon` command with an explicit ResRef names, from any relay it is pointed at - and its
-default relay URL is `ws://localhost:5080`.
+tab), and talk to a relay over WebSocket. The last one is the hook: it already spawns whatever a
+`summon` command with an explicit ResRef names, from any relay it is pointed at - its default relay
+URL is `ws://localhost:5080`.
 
-| | A: inside Yuna's overlay | B: standalone with own game bridge | C: Rust core + Yuna's overlay as spawner |
-|---|---|---|---|
-| Twitch, rolls, rules, sets | in the overlay (.NET Framework 4.8 core, net8 UI) | Rust service | Rust service |
-| Who spawns | overlay mailbox | EEex Remote Console | Yuna's overlay: the core speaks her relay protocol on localhost, so her current release works unchanged |
-| Game context (area, levels, dialogue) | overlay memory reads / mailbox v5 | Lua queries through the console | her snapshot already sends party + level every 2 s; area + game state as a small addition, the console answers meanwhile |
-| Spawn results / refunds | needs mailbox v5 | yes - the console returns JSON results | after a small addition: the overlay reports spawn results back over the WebSocket (her own relay lacks that too) |
-| Yuna's role | reviews every change in her core | not involved | overlay stays the product; she gets bugfixes + result reporting as PRs and can join the Rust core |
-| Build needs here | .NET 4.8 Developer Pack + NuGet CLI | Rust | Rust; the .NET 4.8 pack for PRs into her code |
-| Mode switch (section 0) | setting in the overlay | n/a | overlay points at Yuna's relay (extension mode) or at the local core (direct mode) |
+| | A: everything inside the overlay repo | **P: parallel - own core + overlay support (leaning)** |
+|---|---|---|
+| Core (Twitch inbox client, queue, ledger, rolls, cooldowns, controls, sets) | C# in her overlay (.NET Framework 4.8 core, net8 UI) | Rust, game-agnostic - reusable for other games |
+| How BG gets the spawn | overlay mailbox (needs v5 for results) | **Remote Console + small Lua spawn controller** (verified delivery, as August required) **or** Yuna's overlay through her existing relay protocol - works with her current release, verified once she reports results |
+| Presentation (d20 roll, omen, countdown) | overlay UI | in-game message + our panel; **idea for Yuna:** her overlay sits on top of the game, the ideal place to show roll and countdown |
+| Yuna | reviews every change in her core | keeps her product; gets bugfixes as PRs, an adapter that brings the feature to her users, and an open invitation to the core |
+| Build needs here | .NET 4.8 Developer Pack + NuGet CLI | Rust; .NET pack only for PRs into her code |
 
-**Recommendation: C.** It keeps her overlay at the centre, gives Chriz the Rust core and the
-random encounter design, and everything we need from her side is a fix or addition that also helps
-her own relay users. The EEex Remote Console stays our test harness (in-game assertions) and a
-fallback bridge.
+**Claude's leaning: P.** Reuse for other games already rules out a BG-only home. The core moves at
+our pace with our quality bar, the overlay keeps its focus, and supporting it costs one adapter
+that speaks a protocol it already understands. "Mischform" from earlier meant exactly this.
+
+What would make A better: Yuna wants the feature to *be* part of her overlay and is happy to
+maintain it there - then the core logic could still be shared, just embedded.
 
 Collaboration order:
 
 1. Two small bugfix PRs in her code: ResRef charset, `config.cfg` wiped on update.
-2. An open conversation with Yuna: share this design, offer to build it together, ask how she
-   feels about a Rust core and about spawn results in the overlay.
-3. Spawn result reporting (mailbox + WebSocket) - as our PR or by her, whatever she prefers.
-4. The Rust core, working against her unchanged overlay from day one.
+2. Open conversation with Yuna: share this design, ask what she'd like - adapter only, overlay as
+   presentation layer, joining the core, or keeping it inside her repo.
+3. Spawn result reporting (mailbox + WebSocket) if she wants the overlay path verified - her own
+   relay lacks that too.
+4. Build the core.
 
-### 3.2 "Never lost" vs. a local WebSocket (open)
+### 3.2 "Never lost" vs. a local WebSocket (decided: own small inbox)
 
 - Native EventSub over WebSocket only delivers while the app is connected; after a real disconnect
   nothing is replayed. Channel Points can be recovered afterwards (`UNFULFILLED` query) -
@@ -192,7 +198,8 @@ Collaboration order:
      replay protection and file persistence, and she made it self-hostable with Docker. Teaching it
      to queue direct redemptions durably for the local core would be natural joint work - fits
      option C.
-- Leaning: 3 if Yuna likes it (most collaborative), 2 otherwise (most independent).
+- **Decided 2026-10-04: option 2** - a small Docker container on a small private VM. Yuna's
+  relay stays a possible partner path, not a dependency.
 
 ## 4. Random encounter model
 
@@ -273,9 +280,10 @@ creatures carry script names (death variables) quest scripts may check; generic 
 
 - **No-spawn zones.** Every area file carries type flags (ARE header `0x48`, bit 3 = City). Checked
   in the main install: Athkatla's districts, Trademeet and BG1's Baldur's Gate are flagged City,
-  Irenicus' dungeon is Dungeon, Umar Hills is Forest. Proposal: City areas blocked by default, plus
-  Chriz's own block list and an allow list for exceptions (the Graveyard District is flagged City
-  too). Interiors (neither Outdoor nor Dungeon: shops, taverns, homes) blocked by default as well.
+  Irenicus' dungeon is Dungeon, Umar Hills is Forest. A **switch** decides whether City areas are
+  allowed (decided 2026-10-04), plus Chriz's own block and allow lists (the Graveyard District is
+  flagged City too). Proposal: interiors (neither Outdoor nor Dungeon: shops, taverns, homes)
+  blocked by default.
 - **Game state:** no spawns in dialogue, cutscenes, on the world map or in the main menu. The
   request waits a configurable time, then falls back to the offline/stop policy.
 - **Controls** (control panel + hotkey; a Streamer.bot deck button can call the same thing):
@@ -399,11 +407,12 @@ Facts checked against the official docs on 2026-10-04 (sources in section 12).
 
 ## 10. Open decisions (Chriz)
 
-0. **Host:** A, B or C (Rust core + Yuna's overlay as spawner, recommended)? See 3.1.
+0. **Home of the feature:** parallel (own core + overlay support, leaning) or inside the overlay
+   repo? Talk to Yuna first. See 3.1.
 1. **Board:** where should it live (GitHub Project, a markdown board in `lab/`, ...)?
-2. **Randomness:** merge the August d20 fate roll with the October tiers - proposal: the reward
-   sets the tier band, the visible d20 picks inside it (20 = capped critical = highest *eligible*
-   tier), party XP + campaign decide what is eligible.
+2. ~~Randomness~~ - accepted in principle: the reward sets the tier band, the visible d20 picks
+   inside it (20 = capped critical = highest *eligible* tier), party XP + campaign decide what is
+   eligible. Tuning in design.
 3. **Over the cap:** downgrade to the highest allowed tier, or refund?
 4. **Run-enders:** allow tier 10 at all in a no-reload run, and from which party level?
 5. ~~XP from spawns~~ - decided in August: zero XP, no loot (MVP).
@@ -413,12 +422,11 @@ Facts checked against the official docs on 2026-10-04 (sources in section 12).
 7. **Where shared sets live:** folder in the fork, or a separate repo?
 8. **Offline redemptions:** August says pending Channel Points go to an end-of-stream review list
    (carry over or refund). Same for points redeemed while offline?
-9. **Controls:** August's Hold (freeze both cooldown clocks, keep the queue, pause the reward) +
-   Banish, or October's split into Hold / Pause / Stop? And Bits in the queue on Stop: keep or
-   announce and drop?
-10. **Cities:** August "accept the chaos", October "no spawns in cities" - October wins, confirm.
-    City areas and interiors blocked by default - OK?
-11. **Inbox / reliability:** local WebSocket only, own server, or Yuna's relay (3.2)?
+9. **Controls:** both sets are fine ("das können wir alles machen") - August's Hold (freezes both
+   clocks, keeps the queue) + Banish + end-of-stream review, plus Pause/Stop. Open detail: Bits in
+   the queue on Stop - keep or announce and drop?
+10. ~~Cities~~ - decided: a switch plus block/allow lists. Still open: default for interiors.
+11. ~~Inbox~~ - decided: own small Docker container on a small VM (3.2). Open: provider.
 
 ## 11. Upstream collaboration (Yuna agreed to issues + fork PRs)
 
