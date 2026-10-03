@@ -28,18 +28,18 @@ Working area for Chriz's experiments on top of Yuna's (tapahob) BG Radar Overlay
 |---|---|---|
 | Relay tests (net8.0) | `dotnet test TwitchIntegration/Relay.Tests` | 86/86 passed |
 | Extension receipt tests | `node TwitchIntegration/Extension/tests/pending-receipts.test.js` | 13/13 passed |
-| Overlay build | `dotnet build BGOverlay.sln -c Debug` | **blocked**: `MSB3644`, .NET Framework 4.8 reference assemblies missing |
+| Overlay build | `nuget restore BGOverlay.sln` once, then `dotnet build BGOverlay.sln -c Debug` | builds, 0 errors (after the setup below) |
 
 Machine setup:
 
 1. Fixed 2026-10-04: the user-level `%APPDATA%\NuGet\NuGet.Config` had an empty
    `<packageSources>` (file dated 2026-02-12, cause unknown), so every restore failed with
    `NU1100`. nuget.org is registered again.
-2. Still open, only needed to build Yuna's overlay (host option A or PRs into her C# code):
-   `BGOverlay.csproj` is an old-style .NET Framework 4.8 project. It needs the .NET Framework 4.8
-   Developer Pack (targeting pack) and a `packages.config` restore (NLog 5.0.1, SharpZipLib 1.3.3
-   into `packages\`), which the dotnet CLI cannot do - that needs `nuget.exe` or Visual Studio
-   Build Tools.
+2. Installed 2026-10-04 via winget: .NET Framework 4.8 Developer Pack
+   (`Microsoft.DotNet.Framework.DeveloperPack_4` version 4.8) and the NuGet CLI
+   (`Microsoft.NuGet`). `BGOverlay.csproj` is an old-style .NET Framework 4.8 project with
+   `packages.config` (NLog 5.0.1, SharpZipLib 1.3.3 into `packages\`), which the dotnet CLI can't
+   restore - hence `nuget restore` first.
 
 ## Tools
 
