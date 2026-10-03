@@ -16,6 +16,7 @@
 | 2026-10-04 | A **hold/stop control** for redeems is required. Redemptions arriving while offline: hold or refund - decided during design. |
 | 2026-10-04 | **No spawns in cities** and in areas Chriz blocks. |
 | 2026-10-04 | `lab` branch may be committed and pushed to the fork. No issue to Yuna until the wording is agreed. |
+| 2026-10-04 | **Work with Yuna, not past her:** approach her openly, keep her overlay compatible and central, contribute in small steps she can review and take over; maybe help her towards Rust over time. Quality bar: whatever touches viewers' points or Bits must be solid, the rest can stay pragmatic. |
 
 ## 1. Goal
 
@@ -114,31 +115,39 @@ The Twitch route is decided (section 0): native redeems first. Via Yuna's relay 
 public relay, broadcaster -> overlay routing (missing today), the manage scope, rewards created by
 the relay's client id and an ack path - not worth it for direct redeems.
 
-### 3.1 Host: inside Yuna's overlay, or a standalone service? (open - decision 0)
+### 3.1 Where the encounter logic runs (open - decision 0)
 
-What the overlay does for spawning today is three things: write into the game (mailbox), edit packs
-(WPF tab), talk to the relay. None of them requires the radar overlay itself, so the encounter
-system can live inside it **or** next to it.
+Guiding principle (Chriz, 2026-10-04): build *with* Yuna, not past her. Her overlay stays the face
+of the project and keeps working as it does today; we contribute in steps she can review and take
+over.
 
-| | A: inside Yuna's overlay (C#) | B: standalone service (Rust) on the EEex Remote Console |
-|---|---|---|
-| Toolchain | core is an old-style .NET Framework 4.8 project (`packages.config`); needs the 4.8 Developer Pack + NuGet CLI on this machine; UI project is net8 | Rust (cargo 1.97 installed), one binary, `cargo test` |
-| Game bridge | mailbox v4 is fire-and-forget -> needs a v5 layout change in Yuna's Lua + C# | Remote Console protocol v1.1 already has request ids, JSON results, ready handshake, 22 in-game smoke tests; commands wait during forced dialogue (a natural hold) |
-| Tests | none for the overlay side today | unit tests for rolls, fakes for Twitch and the console, in-game smoke via the console |
-| Config / presets | flat `config.cfg`, wiped on each update (bug) | own files; secrets in the Windows credential store |
-| Twitch client | core has no JSON library; would go into the net8 project - Yuna's call | EventSub + Helix in Rust (crates to be verified) |
-| UI | existing WPF pack editor can be extended | new, small local web panel on 127.0.0.1 - also usable as an OBS browser dock |
-| Collaboration | everything lands upstream, each change needs Yuna's review | set format, fixes and ideas go upstream; her overlay/relay can later trigger the director through an adapter |
-| Risk | slow coordination on a legacy core | second tool next to the overlay; the console runs arbitrary Lua, so the director only calls a small fixed Lua module, never viewer text as code |
+For spawning, the overlay does three things today: write into the game (mailbox), edit packs (WPF
+tab), and talk to a relay over WebSocket. The last one is the hook: the overlay already spawns
+whatever a `summon` command with an explicit ResRef names, from any relay it is pointed at - and its
+default relay URL is `ws://localhost:5080`.
 
-**Claude's recommendation: B.** The bridge Chriz already owns does what mailbox v5 would have to
-add, Rust is testable and fits Chriz's direction, and nothing about spawning needs the radar
-overlay. Yuna's work stays useful: the radar overlay is unaffected, her extension path stays
-available (mode switch), and bug fixes plus the set format go upstream. With B, the .NET 4.8
-Developer Pack is only needed for PRs into her C# code.
+| | A: inside Yuna's overlay | B: standalone with own game bridge | C: Rust core + Yuna's overlay as spawner |
+|---|---|---|---|
+| Twitch, rolls, rules, sets | in the overlay (.NET Framework 4.8 core, net8 UI) | Rust service | Rust service |
+| Who spawns | overlay mailbox | EEex Remote Console | Yuna's overlay: the core speaks her relay protocol on localhost, so her current release works unchanged |
+| Game context (area, levels, dialogue) | overlay memory reads / mailbox v5 | Lua queries through the console | her snapshot already sends party + level every 2 s; area + game state as a small addition, the console answers meanwhile |
+| Spawn results / refunds | needs mailbox v5 | yes - the console returns JSON results | after a small addition: the overlay reports spawn results back over the WebSocket (her own relay lacks that too) |
+| Yuna's role | reviews every change in her core | not involved | overlay stays the product; she gets bugfixes + result reporting as PRs and can join the Rust core |
+| Build needs here | .NET 4.8 Developer Pack + NuGet CLI | Rust | Rust; the .NET 4.8 pack for PRs into her code |
+| Mode switch (section 0) | setting in the overlay | n/a | overlay points at Yuna's relay (extension mode) or at the local core (direct mode) |
 
-What speaks for A: one tool for streamers who already run the overlay, and the feature reaching
-Yuna's users without a second install.
+**Recommendation: C.** It keeps her overlay at the centre, gives Chriz the Rust core and the
+random encounter design, and everything we need from her side is a fix or addition that also helps
+her own relay users. The EEex Remote Console stays our test harness (in-game assertions) and a
+fallback bridge.
+
+Collaboration order:
+
+1. Two small bugfix PRs in her code: ResRef charset, `config.cfg` wiped on update.
+2. An open conversation with Yuna: share this design, offer to build it together, ask how she
+   feels about a Rust core and about spawn results in the overlay.
+3. Spawn result reporting (mailbox + WebSocket) - as our PR or by her, whatever she prefers.
+4. The Rust core, working against her unchanged overlay from day one.
 
 ## 4. Random encounter model
 
@@ -337,16 +346,15 @@ Facts checked against the official docs on 2026-10-04 (sources in section 12).
 | # | Deliverable | Upstream? |
 |---|---|---|
 | B0 | Bugfix PR: ResRef charset (`#`/`!`), so SCS creatures spawn | yes - first, smallest PR (needs the .NET 4.8 Developer Pack) |
-| B1 | Director core: sets, rolls, rules, unit tests, test-roll trigger | A: yes / B: own repo |
-| B2 | Game bridge + context + placement modes + in-game smoke tests | A: mailbox v5, needs Yuna's OK / B: small Lua executor on the Remote Console |
-| B3 | Native EventSub: device-code login, reward provisioning, redemption lifecycle, Bits / Power-ups, pause | A: yes / B: own repo |
-| B4 | Control panel, creature search, set validation | A: yes / B: own repo |
+| B1 | Director core: sets, rolls, rules, unit tests, test-roll trigger | A: upstream / B, C: Rust core repo |
+| B2 | Game bridge + context + placement modes + in-game smoke tests | A: mailbox v5 / B: Lua executor on the Remote Console / C: relay protocol to her overlay + result-reporting PR |
+| B3 | Native EventSub: device-code login, reward provisioning, redemption lifecycle, Bits / Power-ups, pause | A: upstream / B, C: Rust core repo |
+| B4 | Control panel, creature search, set validation | A: upstream / B, C: Rust core repo (creature search could also go into her editor) |
 | B5 | Campaign bands (chapter), 40-60 encounters, shared sets; local trigger API for donations; optional adapter for Yuna's relay | partly |
 
 ## 10. Open decisions (Chriz)
 
-0. **Host:** inside Yuna's overlay (A) or standalone Rust on the EEex Remote Console (B,
-   recommended)? See 3.1.
+0. **Host:** A, B or C (Rust core + Yuna's overlay as spawner, recommended)? See 3.1.
 1. **Board:** where should it live (GitHub Project, a markdown board in `lab/`, ...)?
 2. **Tier model:** absolute tiers + level caps now, campaign bands later (recommended) - or bands
    from the start?
